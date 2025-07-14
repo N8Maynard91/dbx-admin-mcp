@@ -6,7 +6,7 @@
  * @param {boolean} [args.include_highlights=false] - Whether to include highlights in the search results.
  * @returns {Promise<Object>} - The result of the file and folder search.
  */
-const executeFunction = async ({ query, include_highlights = false }) => {
+const executeFunction = async ({ query, include_highlights = false, team_member_id }) => {
   const url = 'https://api.dropboxapi.com/2/files/search_v2';
   const token = process.env.DROPBOX_S_PUBLIC_WORKSPACE_API_KEY;
 
@@ -21,6 +21,9 @@ const executeFunction = async ({ query, include_highlights = false }) => {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     };
+    if (team_member_id) {
+      headers['Dropbox-API-Select-User'] = team_member_id;
+    }
 
     // Perform the fetch request
     const response = await fetch(url, {
@@ -29,18 +32,24 @@ const executeFunction = async ({ query, include_highlights = false }) => {
       body
     });
 
+    let data;
+    const text = await response.text();
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      data = text;
+    }
+
     // Check if the response was successful
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`HTTP ${response.status}: ${errorText}`);
+      throw new Error(`HTTP ${response.status}: ${typeof data === 'string' ? data : JSON.stringify(data)}`);
     }
 
     // Parse and return the response data
-    const data = await response.json();
     return data;
   } catch (error) {
     console.error('Error searching for files and folders:', error);
-    return { error: 'An error occurred while searching for files and folders.' };
+    return { error: 'An error occurred while searching for files and folders.', details: error.message };
   }
 };
 
@@ -65,6 +74,10 @@ const apiTool = {
           include_highlights: {
             type: 'boolean',
             description: 'Whether to include highlights in the search results.'
+          },
+          team_member_id: {
+            type: 'string',
+            description: 'The Dropbox team_member_id to act as (for Business tokens).'
           }
         },
         required: ['query']

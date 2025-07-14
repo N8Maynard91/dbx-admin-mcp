@@ -6,7 +6,7 @@
  * @param {Array} [args.actions=[]] - Actions to perform on the shared folders.
  * @returns {Promise<Object>} - The result of the list folders request.
  */
-const executeFunction = async ({ limit = 100, actions = [] }) => {
+const executeFunction = async ({ limit = 100, actions = [], team_member_id }) => {
   const url = 'https://api.dropboxapi.com/2/sharing/list_folders';
   const token = process.env.DROPBOX_S_PUBLIC_WORKSPACE_API_KEY;
 
@@ -18,9 +18,11 @@ const executeFunction = async ({ limit = 100, actions = [] }) => {
   const headers = {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${token}`,
-    'Dropbox-API-Path-Root': JSON.stringify({ ".tag": "namespace_id", "namespace_id": "2" }),
-
+    'Dropbox-API-Path-Root': JSON.stringify({ ".tag": "namespace_id", "namespace_id": "2" })
   };
+  if (team_member_id) {
+    headers['Dropbox-API-Select-User'] = team_member_id;
+  }
 
   try {
     const response = await fetch(url, {
@@ -29,16 +31,22 @@ const executeFunction = async ({ limit = 100, actions = [] }) => {
       body
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    let data;
+    const text = await response.text();
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      data = text;
     }
 
-    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${typeof data === 'string' ? data : JSON.stringify(data)}`);
+    }
+
     return data;
   } catch (error) {
     console.error('Error listing shared folders:', error);
-    return { error: 'An error occurred while listing shared folders.' };
+    return { error: 'An error occurred while listing shared folders.', details: error.message };
   }
 };
 
@@ -63,6 +71,10 @@ const apiTool = {
           actions: {
             type: 'array',
             description: 'Actions to perform on the shared folders.'
+          },
+          team_member_id: {
+            type: 'string',
+            description: 'The Dropbox team_member_id to act as (for Business tokens).'
           }
         },
         required: []

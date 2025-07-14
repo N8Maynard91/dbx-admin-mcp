@@ -3,13 +3,16 @@
  *
  * @returns {Promise<Object>} - The current user's account information.
  */
-const executeFunction = async () => {
+const executeFunction = async ({ team_member_id } = {}) => {
   const url = 'https://api.dropboxapi.com/2/users/get_current_account';
   const token = process.env.DROPBOX_S_PUBLIC_WORKSPACE_API_KEY;
   const headers = {
     'Authorization': `Bearer ${token}`,
     'Content-Type': 'application/json'
   };
+  if (team_member_id) {
+    headers['Dropbox-API-Select-User'] = team_member_id;
+  }
 
   try {
     const response = await fetch(url, {
@@ -17,18 +20,24 @@ const executeFunction = async () => {
       headers
     });
 
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      data = text;
+    }
+
     // Check if the response was successful
     if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`HTTP ${response.status}: ${errorText}`);
+      throw new Error(`HTTP ${response.status}: ${typeof data === 'string' ? data : JSON.stringify(data)}`);
     }
 
     // Parse and return the response data
-    const data = await response.json();
     return data;
   } catch (error) {
     console.error('Error getting current account information:', error);
-    return { error: 'An error occurred while getting current account information.' };
+    return { error: 'An error occurred while getting current account information.', details: error.message };
   }
 };
 
@@ -45,7 +54,12 @@ const apiTool = {
       description: 'Get information about the current user\'s account.',
       parameters: {
         type: 'object',
-        properties: {},
+        properties: {
+          team_member_id: {
+            type: 'string',
+            description: 'The Dropbox team_member_id to act as (for Business tokens).'
+          }
+        },
         required: []
       }
     }

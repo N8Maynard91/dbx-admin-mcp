@@ -11,7 +11,7 @@
  * @param {boolean} [args.include_non_downloadable_files=true] - Whether to include non-downloadable files.
  * @returns {Promise<Object>} - The result of the folder listing.
  */
-const executeFunction = async ({ path, recursive = false, include_media_info = false, include_deleted = false, include_has_explicit_shared_members = false, include_mounted_folders = true, include_non_downloadable_files = true }) => {
+const executeFunction = async ({ path, recursive = false, include_media_info = false, include_deleted = false, include_has_explicit_shared_members = false, include_mounted_folders = true, include_non_downloadable_files = true, team_member_id }) => {
   const url = 'https://api.dropboxapi.com/2/files/list_folder';
   const token = process.env.DROPBOX_S_PUBLIC_WORKSPACE_API_KEY;
 
@@ -30,6 +30,9 @@ const executeFunction = async ({ path, recursive = false, include_media_info = f
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     };
+    if (team_member_id) {
+      headers['Dropbox-API-Select-User'] = team_member_id;
+    }
 
     const response = await fetch(url, {
       method: 'POST',
@@ -37,16 +40,22 @@ const executeFunction = async ({ path, recursive = false, include_media_info = f
       body: JSON.stringify(body)
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    let data;
+    const text = await response.text();
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      data = text;
     }
 
-    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${typeof data === 'string' ? data : JSON.stringify(data)}`);
+    }
+
     return data;
   } catch (error) {
     console.error('Error listing folder contents:', error);
-    return { error: 'An error occurred while listing folder contents.' };
+    return { error: 'An error occurred while listing folder contents.', details: error.message };
   }
 };
 
@@ -91,6 +100,10 @@ const apiTool = {
           include_non_downloadable_files: {
             type: 'boolean',
             description: 'Whether to include non-downloadable files.'
+          },
+          team_member_id: {
+            type: 'string',
+            description: 'The Dropbox team_member_id to act as (for Business tokens).'
           }
         },
         required: ['path']

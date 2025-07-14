@@ -6,7 +6,7 @@
  * @param {Array} [args.actions=[]] - Actions to perform on the files.
  * @returns {Promise<Object>} - The response containing the list of received files.
  */
-const executeFunction = async ({ limit = 100, actions = [] }) => {
+const executeFunction = async ({ limit = 100, actions = [], team_member_id }) => {
   const url = 'https://api.dropboxapi.com/2/sharing/list_received_files';
   const token = process.env.DROPBOX_S_PUBLIC_WORKSPACE_API_KEY;
 
@@ -21,6 +21,9 @@ const executeFunction = async ({ limit = 100, actions = [] }) => {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     };
+    if (team_member_id) {
+      headers['Dropbox-API-Select-User'] = team_member_id;
+    }
 
     // Perform the fetch request
     const response = await fetch(url, {
@@ -29,18 +32,24 @@ const executeFunction = async ({ limit = 100, actions = [] }) => {
       body
     });
 
+    let data;
+    const text = await response.text();
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      data = text;
+    }
+
     // Check if the response was successful
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData);
+      throw new Error(`HTTP ${response.status}: ${typeof data === 'string' ? data : JSON.stringify(data)}`);
     }
 
     // Parse and return the response data
-    const data = await response.json();
     return data;
   } catch (error) {
     console.error('Error listing received files:', error);
-    return { error: 'An error occurred while listing received files.' };
+    return { error: 'An error occurred while listing received files.', details: error.message };
   }
 };
 
@@ -68,6 +77,10 @@ const apiTool = {
               type: 'string'
             },
             description: 'Actions to perform on the files.'
+          },
+          team_member_id: {
+            type: 'string',
+            description: 'The Dropbox team_member_id to act as (for Business tokens).'
           }
         },
         required: []
