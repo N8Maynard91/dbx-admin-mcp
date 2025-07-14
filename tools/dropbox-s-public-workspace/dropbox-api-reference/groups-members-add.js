@@ -30,22 +30,32 @@ const executeFunction = async ({ group_id, members, return_members = true }) => 
     // Perform the fetch request
     const response = await fetch(url, {
       method: 'POST',
-      headers: headers,
-      body: JSON.stringify(body)
+      headers,
+      body
     });
 
-    // Check if the response was successful
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData);
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      data = text;
     }
 
-    // Parse and return the response data
-    const data = await response.json();
+    if (!response.ok) {
+      let errorObj = { status: response.status, raw: text };
+      if (typeof data === 'object' && data !== null) {
+        if (data.error_summary) errorObj.error_summary = data.error_summary;
+        if (data.error && data.error['.tag']) errorObj.error_tag = data.error['.tag'];
+        errorObj.details = data;
+      }
+      return { error: 'Dropbox API error', ...errorObj };
+    }
+
     return data;
   } catch (error) {
-    console.error('Error adding members to group:', error);
-    return { error: 'An error occurred while adding members to the group.' };
+    console.error('Error adding member to group:', error);
+    return { error: 'An error occurred while adding member to group.', details: error.message };
   }
 };
 

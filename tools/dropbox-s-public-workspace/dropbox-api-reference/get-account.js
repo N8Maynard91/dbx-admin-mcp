@@ -23,16 +23,28 @@ const executeFunction = async ({ account_id }) => {
       body
     });
 
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData);
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      data = text;
     }
 
-    const data = await response.json();
+    if (!response.ok) {
+      let errorObj = { status: response.status, raw: text };
+      if (typeof data === 'object' && data !== null) {
+        if (data.error_summary) errorObj.error_summary = data.error_summary;
+        if (data.error && data.error['.tag']) errorObj.error_tag = data.error['.tag'];
+        errorObj.details = data;
+      }
+      return { error: 'Dropbox API error', ...errorObj };
+    }
+
     return data;
   } catch (error) {
     console.error('Error retrieving account information:', error);
-    return { error: 'An error occurred while retrieving account information.' };
+    return { error: 'An error occurred while retrieving account information.', details: error.message };
   }
 };
 
