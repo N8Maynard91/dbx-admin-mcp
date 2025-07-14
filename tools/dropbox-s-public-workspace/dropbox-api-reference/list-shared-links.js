@@ -30,8 +30,8 @@ const executeFunction = async ({ cursor }) => {
 
     // Check if the response was successful
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData);
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
     }
 
     // Parse and return the response data

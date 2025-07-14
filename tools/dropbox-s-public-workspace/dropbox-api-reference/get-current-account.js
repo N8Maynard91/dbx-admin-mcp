@@ -8,9 +8,6 @@ const executeFunction = async () => {
   const token = process.env.DROPBOX_S_PUBLIC_WORKSPACE_API_KEY;
   const headers = {
     'Authorization': `Bearer ${token}`,
-    'Dropbox-API-Path-Root': JSON.stringify({ ".tag": "namespace_id", "namespace_id": "2" }),
-    'Dropbox-API-Select-User': 'dbmid:FDFSVF-DFSDF',
-    'Dropbox-API-Select-Admin': 'dbmid:FDFSVF-DFSDF',
     'Content-Type': 'application/json'
   };
 
@@ -22,8 +19,8 @@ const executeFunction = async () => {
 
     // Check if the response was successful
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData);
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
     }
 
     // Parse and return the response data

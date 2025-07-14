@@ -9,7 +9,7 @@ const executeFunction = async () => {
   const headers = {
     'Authorization': `Bearer ${token}`,
     'Dropbox-API-Path-Root': JSON.stringify({ ".tag": "namespace_id", "namespace_id": "2" }),
-    'Dropbox-API-Select-User': 'dbmid:FDFSVF-DFSDF',
+
     'Content-Type': 'application/json'
   };
 
@@ -20,8 +20,8 @@ const executeFunction = async () => {
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData);
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
     }
 
     const data = await response.json();

@@ -8,7 +8,7 @@
  */
 const executeFunction = async ({ limit = 100, actions = [] }) => {
   const url = 'https://api.dropboxapi.com/2/sharing/list_folders';
-  const accessToken = ''; // will be provided by the user
+  const token = process.env.DROPBOX_S_PUBLIC_WORKSPACE_API_KEY;
 
   const body = JSON.stringify({
     limit,
@@ -17,9 +17,9 @@ const executeFunction = async ({ limit = 100, actions = [] }) => {
 
   const headers = {
     'Content-Type': 'application/json',
-    'Authorization': `Bearer ${accessToken}`,
+    'Authorization': `Bearer ${token}`,
     'Dropbox-API-Path-Root': JSON.stringify({ ".tag": "namespace_id", "namespace_id": "2" }),
-    'Dropbox-API-Select-User': 'dbmid:FDFSVF-DFSDF'
+
   };
 
   try {
@@ -30,8 +30,8 @@ const executeFunction = async ({ limit = 100, actions = [] }) => {
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData);
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
     }
 
     const data = await response.json();

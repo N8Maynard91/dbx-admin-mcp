@@ -38,8 +38,8 @@ const executeFunction = async ({ path, recursive = false, include_media_info = f
     });
 
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData);
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
     }
 
     const data = await response.json();

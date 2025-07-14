@@ -7,7 +7,7 @@
  */
 const executeFunction = async ({ limit = 100 }) => {
   const url = 'https://api.dropboxapi.com/2/team/team_folder/list';
-  const accessToken = ''; // will be provided by the user
+  const token = process.env.DROPBOX_S_PUBLIC_WORKSPACE_API_KEY;
 
   try {
     // Prepare the request body
@@ -16,7 +16,7 @@ const executeFunction = async ({ limit = 100 }) => {
     // Set up headers for the request
     const headers = {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${accessToken}`
+      'Authorization': `Bearer ${token}`
     };
 
     // Perform the fetch request
@@ -28,8 +28,8 @@ const executeFunction = async ({ limit = 100 }) => {
 
     // Check if the response was successful
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData);
+      const errorText = await response.text();
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
     }
 
     // Parse and return the response data
