@@ -30,7 +30,13 @@ const executeFunction = async ({ team_member_id } = {}) => {
 
     // Check if the response was successful
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${typeof data === 'string' ? data : JSON.stringify(data)}`);
+      let errorObj = { status: response.status, raw: text };
+      if (typeof data === 'object' && data !== null) {
+        if (data.error_summary) errorObj.error_summary = data.error_summary;
+        if (data.error && data.error['.tag']) errorObj.error_tag = data.error['.tag'];
+        errorObj.details = data;
+      }
+      return { error: 'Dropbox API error', ...errorObj };
     }
 
     // Parse and return the response data

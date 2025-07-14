@@ -6,7 +6,21 @@
  * @param {Array} [args.actions=[]] - Actions to perform on the shared folders.
  * @returns {Promise<Object>} - The result of the list folders request.
  */
-const executeFunction = async ({ limit = 100, actions = [], team_member_id }) => {
+import { executeFunction as getCurrentAccount } from './get-current-account.js';
+
+const executeFunction = async (args) => {
+  let { limit = 100, actions = [], team_member_id } = args;
+
+  // If team_member_id is not provided, try to fetch it from get_current_account
+  if (!team_member_id) {
+    const current = await getCurrentAccount();
+    if (current && current.team_member_id) {
+      team_member_id = current.team_member_id;
+    } else {
+      return { error: 'team_member_id is required for this operation and could not be determined from the token.' };
+    }
+  }
+
   const url = 'https://api.dropboxapi.com/2/sharing/list_folders';
   const token = process.env.DROPBOX_S_PUBLIC_WORKSPACE_API_KEY;
 
@@ -18,11 +32,9 @@ const executeFunction = async ({ limit = 100, actions = [], team_member_id }) =>
   const headers = {
     'Content-Type': 'application/json',
     'Authorization': `Bearer ${token}`,
-    'Dropbox-API-Path-Root': JSON.stringify({ ".tag": "namespace_id", "namespace_id": "2" })
+    'Dropbox-API-Path-Root': JSON.stringify({ ".tag": "namespace_id", "namespace_id": "2" }),
+    'Dropbox-API-Select-User': team_member_id
   };
-  if (team_member_id) {
-    headers['Dropbox-API-Select-User'] = team_member_id;
-  }
 
   try {
     const response = await fetch(url, {
@@ -40,7 +52,13 @@ const executeFunction = async ({ limit = 100, actions = [], team_member_id }) =>
     }
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${typeof data === 'string' ? data : JSON.stringify(data)}`);
+      let errorObj = { status: response.status, raw: text };
+      if (typeof data === 'object' && data !== null) {
+        if (data.error_summary) errorObj.error_summary = data.error_summary;
+        if (data.error && data.error['.tag']) errorObj.error_tag = data.error['.tag'];
+        errorObj.details = data;
+      }
+      return { error: 'Dropbox API error', ...errorObj };
     }
 
     return data;

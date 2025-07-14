@@ -11,7 +11,21 @@
  * @param {boolean} [args.include_non_downloadable_files=true] - Whether to include non-downloadable files.
  * @returns {Promise<Object>} - The result of the folder listing.
  */
-const executeFunction = async ({ path, recursive = false, include_media_info = false, include_deleted = false, include_has_explicit_shared_members = false, include_mounted_folders = true, include_non_downloadable_files = true, team_member_id }) => {
+import { executeFunction as getCurrentAccount } from './get-current-account.js';
+
+const executeFunction = async (args) => {
+  let { path, recursive = false, include_media_info = false, include_deleted = false, include_has_explicit_shared_members = false, include_mounted_folders = true, include_non_downloadable_files = true, team_member_id } = args;
+
+  // If team_member_id is not provided, try to fetch it from get_current_account
+  if (!team_member_id) {
+    const current = await getCurrentAccount();
+    if (current && current.team_member_id) {
+      team_member_id = current.team_member_id;
+    } else {
+      return { error: 'team_member_id is required for this operation and could not be determined from the token.' };
+    }
+  }
+
   const url = 'https://api.dropboxapi.com/2/files/list_folder';
   const token = process.env.DROPBOX_S_PUBLIC_WORKSPACE_API_KEY;
 
@@ -28,11 +42,9 @@ const executeFunction = async ({ path, recursive = false, include_media_info = f
   try {
     const headers = {
       'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'Dropbox-API-Select-User': team_member_id
     };
-    if (team_member_id) {
-      headers['Dropbox-API-Select-User'] = team_member_id;
-    }
 
     const response = await fetch(url, {
       method: 'POST',
@@ -49,7 +61,13 @@ const executeFunction = async ({ path, recursive = false, include_media_info = f
     }
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${typeof data === 'string' ? data : JSON.stringify(data)}`);
+      let errorObj = { status: response.status, raw: text };
+      if (typeof data === 'object' && data !== null) {
+        if (data.error_summary) errorObj.error_summary = data.error_summary;
+        if (data.error && data.error['.tag']) errorObj.error_tag = data.error['.tag'];
+        errorObj.details = data;
+      }
+      return { error: 'Dropbox API error', ...errorObj };
     }
 
     return data;
