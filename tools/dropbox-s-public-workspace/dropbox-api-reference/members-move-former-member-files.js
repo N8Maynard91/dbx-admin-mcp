@@ -7,9 +7,15 @@
  * @param {string} args.transferAdminId - The team member ID of the admin initiating the transfer.
  * @returns {Promise<Object>} - The result of the file transfer operation.
  */
-const executeFunction = async ({ userId, transferDestId, transferAdminId }) => {
+const executeFunction = async ({ userId, transferDestId, transferAdminId, userStatus }) => {
+  if (!userId || !transferDestId || !transferAdminId) {
+    return { error: 'userId, transferDestId, and transferAdminId (all as team_member_id strings) are required.' };
+  }
+  if (userStatus && userStatus !== 'removed') {
+    return { error: 'User must be fully removed from the team before moving their files.' };
+  }
   const url = 'https://api.dropboxapi.com/2/team/members/move_former_member_files';
-  const accessToken = ''; // will be provided by the user
+  const accessToken = process.env.DROPBOX_S_PUBLIC_WORKSPACE_API_KEY;
 
   const body = {
     user: {
@@ -40,24 +46,36 @@ const executeFunction = async ({ userId, transferDestId, transferAdminId }) => {
       body: JSON.stringify(body)
     });
 
-    // Check if the response was successful
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData);
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      data = text;
     }
 
-    // Parse and return the response data
-    const data = await response.json();
+    if (!response.ok) {
+      let errorObj = { status: response.status, raw: text };
+      if (typeof data === 'object' && data !== null) {
+        if (data.error_summary) errorObj.error_summary = data.error_summary;
+        if (data.error && data.error['.tag']) errorObj.error_tag = data.error['.tag'];
+        errorObj.details = data;
+      }
+      return { error: 'Dropbox API error', ...errorObj };
+    }
+
     return data;
   } catch (error) {
     console.error('Error moving former member files:', error);
-    return { error: 'An error occurred while moving former member files.' };
+    return { error: 'An error occurred while moving former member files.', details: error.message };
   }
 };
 
 /**
  * Tool configuration for moving former member files in Dropbox.
- * @type {Object}
+ * @param {string} userId - The team_member_id of the user whose files are to be moved. (required)
+ * @param {string} transferDestId - The team_member_id to whom the files will be transferred. (required)
+ * @param {string} transferAdminId - The team_member_id of the admin initiating the transfer. (required)
  */
 const apiTool = {
   function: executeFunction,

@@ -4,15 +4,20 @@
  * @param {Object} args - Arguments for creating the folder.
  * @param {string} args.path - The path where the folder will be created.
  * @param {boolean} [args.autorename=false] - Whether to automatically rename the folder if it already exists.
+ * @param {string} [team_member_id] - Optional team member ID to act as.
  * @returns {Promise<Object>} - The result of the folder creation.
  */
-const executeFunction = async ({ path, autorename = false }) => {
+const executeFunction = async ({ path, autorename = true, team_member_id }) => {
+  if (!team_member_id) {
+    return { error: 'team_member_id is required for user file operations. Please provide the team_member_id to act as.' };
+  }
   const url = 'https://api.dropboxapi.com/2/files/create_folder_v2';
   const token = process.env.DROPBOX_S_PUBLIC_WORKSPACE_API_KEY;
   const headers = {
-    'Content-Type': 'application/json',
-    'Authorization': `Bearer ${token}`
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
   };
+  headers['Dropbox-API-Select-User'] = team_member_id;
 
   const body = JSON.stringify({
     path,
@@ -72,6 +77,10 @@ const apiTool = {
           autorename: {
             type: 'boolean',
             description: 'Whether to automatically rename the folder if it already exists.'
+          },
+          team_member_id: {
+            type: 'string',
+            description: 'Optional team member ID to act as.'
           }
         },
         required: ['path']

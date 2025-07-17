@@ -3,15 +3,19 @@
  *
  * @param {Object} args - Arguments for the download.
  * @param {string} args.path - The path of the file to download from Dropbox.
+ * @param {string} [team_member_id] - Optional team member ID to act as.
  * @returns {Promise<Object>} - The result of the file download.
  */
-const executeFunction = async ({ path }) => {
+const executeFunction = async ({ path, team_member_id }) => {
   const url = 'https://content.dropboxapi.com/2/files/download';
   const token = process.env.DROPBOX_S_PUBLIC_WORKSPACE_API_KEY;
   const headers = {
     'Authorization': `Bearer ${token}`,
     'Dropbox-API-Arg': JSON.stringify({ path })
   };
+  if (team_member_id) {
+    headers['Dropbox-API-Select-User'] = team_member_id;
+  }
 
   try {
     // Perform the fetch request
@@ -62,6 +66,10 @@ const apiTool = {
           path: {
             type: 'string',
             description: 'The path of the file to download from Dropbox.'
+          },
+          team_member_id: {
+            type: 'string',
+            description: 'Optional team member ID to act as.'
           }
         },
         required: ['path']

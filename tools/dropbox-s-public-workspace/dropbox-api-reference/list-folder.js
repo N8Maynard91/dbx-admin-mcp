@@ -9,58 +9,54 @@
  * @param {boolean} [args.include_has_explicit_shared_members=false] - Whether to include shared members.
  * @param {boolean} [args.include_mounted_folders=true] - Whether to include mounted folders.
  * @param {boolean} [args.include_non_downloadable_files=true] - Whether to include non-downloadable files.
+ * @param {string} [team_member_id] - Optional team member ID to act as.
  * @returns {Promise<Object>} - The result of the folder listing.
  */
-import { executeFunction as getCurrentAccount } from './get-current-account.js';
+import { apiTool as getCurrentAccountTool } from './get-current-account.js';
+const getCurrentAccount = getCurrentAccountTool.function;
 
-const executeFunction = async (args) => {
-  let { path, recursive = false, include_media_info = false, include_deleted = false, include_has_explicit_shared_members = false, include_mounted_folders = true, include_non_downloadable_files = true, team_member_id } = args;
-
-  // If team_member_id is not provided, try to fetch it from get_current_account
+/**
+ * Note: Listing folders must be done in the context of a specific user. team_member_id is required.
+ */
+const executeFunction = async ({ path = '', recursive = false, include_media_info = false, include_deleted = false, include_has_explicit_shared_members = false, team_member_id }) => {
   if (!team_member_id) {
-    const current = await getCurrentAccount();
-    if (current && current.team_member_id) {
-      team_member_id = current.team_member_id;
-    } else {
-      return { error: 'team_member_id is required for this operation and could not be determined from the token.' };
-    }
+    return { error: 'team_member_id is required for user file operations. Please provide the team_member_id to act as.' };
   }
-
   const url = 'https://api.dropboxapi.com/2/files/list_folder';
   const token = process.env.DROPBOX_S_PUBLIC_WORKSPACE_API_KEY;
-
-  const body = {
-    path,
+  // If path is '/' (root), use '' instead
+  const normalizedPath = path === '/' ? '' : path;
+  const body = JSON.stringify({
+    path: normalizedPath,
     recursive,
     include_media_info,
     include_deleted,
-    include_has_explicit_shared_members,
-    include_mounted_folders,
-    include_non_downloadable_files
+    include_has_explicit_shared_members
+  });
+  const headers = {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
   };
+  headers['Dropbox-API-Select-User'] = team_member_id;
 
   try {
-    const headers = {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-      'Dropbox-API-Select-User': team_member_id
-    };
-
     const response = await fetch(url, {
       method: 'POST',
       headers,
-      body: JSON.stringify(body)
+      body: body
     });
-
-    let data;
     const text = await response.text();
+    let data;
     try {
       data = JSON.parse(text);
     } catch (e) {
       data = text;
     }
-
     if (!response.ok) {
+      // Guardrail: path/not_found error
+      if (typeof data === 'object' && data !== null && data.error && data.error['.tag'] === 'path' && data.error.path['.tag'] === 'not_found') {
+        return { error: 'The specified path does not exist in the user\'s Dropbox.' };
+      }
       let errorObj = { status: response.status, raw: text };
       if (typeof data === 'object' && data !== null) {
         if (data.error_summary) errorObj.error_summary = data.error_summary;
@@ -69,11 +65,10 @@ const executeFunction = async (args) => {
       }
       return { error: 'Dropbox API error', ...errorObj };
     }
-
     return data;
   } catch (error) {
-    console.error('Error listing folder contents:', error);
-    return { error: 'An error occurred while listing folder contents.', details: error.message };
+    console.error('Error listing folder:', error);
+    return { error: 'An error occurred while listing the folder.', details: error.message };
   }
 };
 

@@ -6,14 +6,15 @@
  * @param {Array} [args.actions=[]] - Actions to perform on the shared folders.
  * @returns {Promise<Object>} - The result of the list folders request.
  */
-import { executeFunction as getCurrentAccount } from './get-current-account.js';
+import { apiTool as getCurrentAccountTool } from './get-current-account.js';
+const getCurrentAccount = getCurrentAccountTool.function;
 
 const executeFunction = async (args) => {
   let { limit = 100, actions = [], team_member_id } = args;
 
   // If team_member_id is not provided, try to fetch it from get_current_account
   if (!team_member_id) {
-    const current = await getCurrentAccount();
+    const current = await getCurrentAccount({}); // Pass an empty object for the function call
     if (current && current.team_member_id) {
       team_member_id = current.team_member_id;
     } else {

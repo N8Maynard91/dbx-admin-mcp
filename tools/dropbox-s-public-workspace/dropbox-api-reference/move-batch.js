@@ -5,9 +5,14 @@
  * @param {Array} args.entries - An array of objects specifying the files or folders to move.
  * @param {boolean} [args.autorename=false] - Whether to automatically rename files if a conflict occurs.
  * @param {boolean} [args.allow_ownership_transfer=false] - Whether to allow ownership transfer during the move.
+ * @param {string} [team_member_id] - Optional team member ID to act as.
  * @returns {Promise<Object>} - The result of the move operation.
  */
-const executeFunction = async ({ entries, autorename = false, allow_ownership_transfer = false }) => {
+const executeFunction = async ({ entries, autorename = false, allow_ownership_transfer = false, team_member_id }) => {
+  if (!team_member_id) {
+    return { error: 'team_member_id is required for user file operations. Please provide the team_member_id to act as.' };
+  }
+  // Optionally, check that all entries are within the same user context if possible (not always possible to check, but document this limitation)
   const url = 'https://api.dropboxapi.com/2/files/move_batch_v2';
   const token = process.env.DROPBOX_S_PUBLIC_WORKSPACE_API_KEY;
 
@@ -23,6 +28,9 @@ const executeFunction = async ({ entries, autorename = false, allow_ownership_tr
       'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json'
     };
+    if (team_member_id) {
+      headers['Dropbox-API-Select-User'] = team_member_id;
+    }
 
     // Perform the fetch request
     const response = await fetch(url, {
@@ -31,14 +39,24 @@ const executeFunction = async ({ entries, autorename = false, allow_ownership_tr
       body: JSON.stringify(body)
     });
 
-    // Check if the response was successful
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData);
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      data = text;
     }
 
-    // Parse and return the response data
-    const data = await response.json();
+    if (!response.ok) {
+      let errorObj = { status: response.status, raw: text };
+      if (typeof data === 'object' && data !== null) {
+        if (data.error_summary) errorObj.error_summary = data.error_summary;
+        if (data.error && data.error['.tag']) errorObj.error_tag = data.error['.tag'];
+        errorObj.details = data;
+      }
+      return { error: 'Dropbox API error', ...errorObj };
+    }
+
     return data;
   } catch (error) {
     console.error('Error moving files:', error);

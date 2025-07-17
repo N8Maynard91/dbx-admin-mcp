@@ -7,11 +7,20 @@
  * @param {boolean} [args.allow_shared_folder=false] - Whether to allow copying shared folders.
  * @param {boolean} [args.autorename=false] - Whether to automatically rename the file if a conflict occurs.
  * @param {boolean} [args.allow_ownership_transfer=false] - Whether to allow ownership transfer during the copy.
+ * @param {string} [team_member_id] - Optional team member ID to act as.
  * @returns {Promise<Object>} - The result of the copy operation.
  */
-const executeFunction = async ({ from_path, to_path, allow_shared_folder = false, autorename = false, allow_ownership_transfer = false }) => {
+const executeFunction = async ({ from_path, to_path, allow_shared_folder = false, autorename = false, allow_ownership_transfer = false, team_member_id }) => {
+  if (!team_member_id) {
+    return { error: 'team_member_id is required for user file operations. Please provide the team_member_id to act as.' };
+  }
   const url = 'https://api.dropboxapi.com/2/files/copy_v2';
   const token = process.env.DROPBOX_S_PUBLIC_WORKSPACE_API_KEY;
+  const headers = {
+    'Authorization': `Bearer ${token}`,
+    'Content-Type': 'application/json'
+  };
+  headers['Dropbox-API-Select-User'] = team_member_id;
 
   const body = JSON.stringify({
     from_path,
@@ -22,11 +31,6 @@ const executeFunction = async ({ from_path, to_path, allow_shared_folder = false
   });
 
   try {
-    const headers = {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
-    };
-
     const response = await fetch(url, {
       method: 'POST',
       headers,
@@ -42,6 +46,10 @@ const executeFunction = async ({ from_path, to_path, allow_shared_folder = false
     }
 
     if (!response.ok) {
+      // Guardrail: from_lookup/not_found error
+      if (typeof data === 'object' && data !== null && data.error && data.error['.tag'] === 'from_lookup' && data.error.from_lookup['.tag'] === 'not_found') {
+        return { error: 'The source file does not exist at the specified path.' };
+      }
       let errorObj = { status: response.status, raw: text };
       if (typeof data === 'object' && data !== null) {
         if (data.error_summary) errorObj.error_summary = data.error_summary;
@@ -53,8 +61,8 @@ const executeFunction = async ({ from_path, to_path, allow_shared_folder = false
 
     return data;
   } catch (error) {
-    console.error('Error copying file or folder:', error);
-    return { error: 'An error occurred while copying the file or folder.', details: error.message };
+    console.error('Error copying file:', error);
+    return { error: 'An error occurred while copying the file.', details: error.message };
   }
 };
 
@@ -91,6 +99,10 @@ const apiTool = {
           allow_ownership_transfer: {
             type: 'boolean',
             description: 'Whether to allow ownership transfer during the copy.'
+          },
+          team_member_id: {
+            type: 'string',
+            description: 'Optional team member ID to act as.'
           }
         },
         required: ['from_path', 'to_path']

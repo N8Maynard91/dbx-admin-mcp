@@ -3,9 +3,10 @@
  *
  * @param {Object} args - Arguments for the export.
  * @param {string} args.path - The path of the file to export in Dropbox.
+ * @param {string} [team_member_id] - Optional team member ID to act as.
  * @returns {Promise<Object>} - The result of the file export.
  */
-const executeFunction = async ({ path }) => {
+const executeFunction = async ({ path, team_member_id }) => {
   const url = 'https://content.dropboxapi.com/2/files/export';
   const token = process.env.DROPBOX_S_PUBLIC_WORKSPACE_API_KEY;
 
@@ -15,6 +16,9 @@ const executeFunction = async ({ path }) => {
       'Authorization': `Bearer ${token}`,
       'Dropbox-API-Arg': JSON.stringify({ path })
     };
+    if (team_member_id) {
+      headers['Dropbox-API-Select-User'] = team_member_id;
+    }
 
     // Perform the fetch request
     const response = await fetch(url, {
@@ -64,6 +68,10 @@ const apiTool = {
           path: {
             type: 'string',
             description: 'The path of the file to export in Dropbox.'
+          },
+          team_member_id: {
+            type: 'string',
+            description: 'Optional team member ID to act as.'
           }
         },
         required: ['path']

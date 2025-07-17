@@ -6,14 +6,15 @@
  * @param {boolean} [args.include_highlights=false] - Whether to include highlights in the search results.
  * @returns {Promise<Object>} - The result of the file and folder search.
  */
-import { executeFunction as getCurrentAccount } from './get-current-account.js';
+import { apiTool as getCurrentAccountTool } from './get-current-account.js';
+const getCurrentAccount = getCurrentAccountTool.function;
 
 const executeFunction = async (args) => {
   let { query, include_highlights = false, team_member_id } = args;
 
   // If team_member_id is not provided, try to fetch it from get_current_account
   if (!team_member_id) {
-    const current = await getCurrentAccount();
+    const current = await getCurrentAccount({}); // Pass an empty object for the function call
     if (current && current.team_member_id) {
       team_member_id = current.team_member_id;
     } else {

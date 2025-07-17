@@ -6,9 +6,10 @@
  * @param {boolean} [args.include_media_info=false] - Whether to include media info.
  * @param {boolean} [args.include_deleted=false] - Whether to include deleted items.
  * @param {boolean} [args.include_has_explicit_shared_members=false] - Whether to include explicit shared members.
+ * @param {string} [team_member_id] - Optional team member ID to act as.
  * @returns {Promise<Object>} - The metadata of the specified file or folder.
  */
-const executeFunction = async ({ path, include_media_info = false, include_deleted = false, include_has_explicit_shared_members = false }) => {
+const executeFunction = async ({ path, include_media_info = false, include_deleted = false, include_has_explicit_shared_members = false, team_member_id }) => {
   const url = 'https://api.dropboxapi.com/2/files/get_metadata';
   const token = process.env.DROPBOX_S_PUBLIC_WORKSPACE_API_KEY;
 
@@ -25,6 +26,9 @@ const executeFunction = async ({ path, include_media_info = false, include_delet
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     };
+    if (team_member_id) {
+      headers['Dropbox-API-Select-User'] = team_member_id;
+    }
 
     // Perform the fetch request
     const response = await fetch(url, {
@@ -87,6 +91,10 @@ const apiTool = {
           include_has_explicit_shared_members: {
             type: 'boolean',
             description: 'Whether to include explicit shared members.'
+          },
+          team_member_id: {
+            type: 'string',
+            description: 'Optional team member ID to act as.'
           }
         },
         required: ['path']

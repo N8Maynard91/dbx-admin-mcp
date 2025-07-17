@@ -7,9 +7,13 @@
  * @param {boolean} [args.allow_shared_folder=false] - Whether to allow moving shared folders.
  * @param {boolean} [args.autorename=false] - Whether to automatically rename the file if the destination path already exists.
  * @param {boolean} [args.allow_ownership_transfer=false] - Whether to allow ownership transfer when moving files.
+ * @param {string} [team_member_id] - Optional team member ID to act as.
  * @returns {Promise<Object>} - The result of the move operation.
  */
-const executeFunction = async ({ from_path, to_path, allow_shared_folder = false, autorename = false, allow_ownership_transfer = false }) => {
+const executeFunction = async ({ from_path, to_path, allow_shared_folder = false, autorename = false, allow_ownership_transfer = false, team_member_id }) => {
+  if (!team_member_id) {
+    return { error: 'team_member_id is required for user file operations. Please provide the team_member_id to act as.' };
+  }
   const url = 'https://api.dropboxapi.com/2/files/move_v2';
   const token = process.env.DROPBOX_S_PUBLIC_WORKSPACE_API_KEY;
 
@@ -27,6 +31,9 @@ const executeFunction = async ({ from_path, to_path, allow_shared_folder = false
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     };
+    if (team_member_id) {
+      headers['Dropbox-API-Select-User'] = team_member_id;
+    }
 
     // Perform the fetch request
     const response = await fetch(url, {
@@ -93,6 +100,10 @@ const apiTool = {
           allow_ownership_transfer: {
             type: 'boolean',
             description: 'Whether to allow ownership transfer when moving files.'
+          },
+          team_member_id: {
+            type: 'string',
+            description: 'Optional team member ID to act as.'
           }
         },
         required: ['from_path', 'to_path']

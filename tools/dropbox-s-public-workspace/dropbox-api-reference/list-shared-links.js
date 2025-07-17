@@ -3,9 +3,13 @@
  *
  * @param {Object} args - Arguments for the shared links request.
  * @param {string} [args.cursor] - A cursor for pagination to retrieve more results.
+ * @param {string} [team_member_id] - Optional team member ID to act as.
  * @returns {Promise<Object>} - The result of the shared links listing.
  */
-const executeFunction = async ({ cursor }) => {
+const executeFunction = async ({ cursor, team_member_id }) => {
+  if (!team_member_id) {
+    return { error: 'team_member_id is required for this operation. Please provide the team_member_id to act as.' };
+  }
   const url = 'https://api.dropboxapi.com/2/sharing/list_shared_links';
   const token = process.env.DROPBOX_S_PUBLIC_WORKSPACE_API_KEY;
 
@@ -17,8 +21,9 @@ const executeFunction = async ({ cursor }) => {
 
     // Set up headers for the request
     const headers = {
+      'Authorization': `Bearer ${token}`,
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
+      'Dropbox-API-Select-User': team_member_id
     };
 
     // Perform the fetch request
@@ -60,6 +65,10 @@ const apiTool = {
           cursor: {
             type: 'string',
             description: 'A cursor for pagination to retrieve more results.'
+          },
+          team_member_id: {
+            type: 'string',
+            description: 'Optional team member ID to act as.'
           }
         }
       }

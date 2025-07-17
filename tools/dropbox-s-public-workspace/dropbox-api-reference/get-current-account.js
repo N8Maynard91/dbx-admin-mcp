@@ -1,25 +1,23 @@
 /**
- * Function to get the current user's account information from Dropbox.
- *
- * @returns {Promise<Object>} - The current user's account information.
+ * Get the current account information for a Dropbox user or team member.
+ * @param {string} [team_member_id] - Optional team member ID to act as (sets Dropbox-API-Select-User header).
+ * @returns {Promise<Object>} - The current account info.
  */
 const executeFunction = async ({ team_member_id } = {}) => {
   const url = 'https://api.dropboxapi.com/2/users/get_current_account';
   const token = process.env.DROPBOX_S_PUBLIC_WORKSPACE_API_KEY;
   const headers = {
-    'Authorization': `Bearer ${token}`,
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${token}`
   };
   if (team_member_id) {
     headers['Dropbox-API-Select-User'] = team_member_id;
   }
-
   try {
     const response = await fetch(url, {
       method: 'POST',
       headers
     });
-
     const text = await response.text();
     let data;
     try {
@@ -27,23 +25,15 @@ const executeFunction = async ({ team_member_id } = {}) => {
     } catch (e) {
       data = text;
     }
-
-    // Check if the response was successful
     if (!response.ok) {
-      let errorObj = { status: response.status, raw: text };
-      if (typeof data === 'object' && data !== null) {
-        if (data.error_summary) errorObj.error_summary = data.error_summary;
-        if (data.error && data.error['.tag']) errorObj.error_tag = data.error['.tag'];
-        errorObj.details = data;
+      if (typeof data === 'object' && data !== null && data.error && data.error['.tag'] === 'team_token') {
+        return { error: 'This endpoint requires a user context. Provide a team_member_id to act as a specific user.' };
       }
-      return { error: 'Dropbox API error', ...errorObj };
+      return { error: 'Dropbox API error', status: response.status, raw: text };
     }
-
-    // Parse and return the response data
     return data;
-  } catch (error) {
-    console.error('Error getting current account information:', error);
-    return { error: 'An error occurred while getting current account information.', details: error.message };
+  } catch (err) {
+    return { error: 'An error occurred while getting current account info.', details: err.message };
   }
 };
 

@@ -8,9 +8,10 @@
  * @param {boolean} [args.mute=false] - Whether to mute notifications for the upload.
  * @param {boolean} [args.strict_conflict=false] - Whether to enforce strict conflict resolution.
  * @param {Buffer} args.fileContent - The content of the file to upload.
+ * @param {string} [team_member_id] - Optional team member ID to act as.
  * @returns {Promise<Object>} - The result of the upload operation.
  */
-const executeFunction = async ({ path, mode, autorename = true, mute = false, strict_conflict = false, fileContent }) => {
+const executeFunction = async ({ path, mode, autorename = true, mute = false, strict_conflict = false, fileContent, team_member_id }) => {
   const url = 'https://content.dropboxapi.com/2/files/upload';
   const token = process.env.DROPBOX_S_PUBLIC_WORKSPACE_API_KEY;
 
@@ -25,6 +26,9 @@ const executeFunction = async ({ path, mode, autorename = true, mute = false, st
     }),
     'Content-Type': 'application/octet-stream'
   };
+  if (team_member_id) {
+    headers['Dropbox-API-Select-User'] = team_member_id;
+  }
 
   try {
     const response = await fetch(url, {
@@ -96,6 +100,10 @@ const apiTool = {
           fileContent: {
             type: 'string',
             description: 'The content of the file to upload.'
+          },
+          team_member_id: {
+            type: 'string',
+            description: 'Optional team member ID to act as.'
           }
         },
         required: ['path', 'mode', 'fileContent']

@@ -23,18 +23,28 @@ const executeFunction = async ({ close = false }) => {
       headers
     });
 
-    // Check if the response was successful
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData);
+    const text = await response.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      data = text;
     }
 
-    // Parse and return the response data
-    const data = await response.json();
+    if (!response.ok) {
+      let errorObj = { status: response.status, raw: text };
+      if (typeof data === 'object' && data !== null) {
+        if (data.error_summary) errorObj.error_summary = data.error_summary;
+        if (data.error && data.error['.tag']) errorObj.error_tag = data.error['.tag'];
+        errorObj.details = data;
+      }
+      return { error: 'Dropbox API error', ...errorObj };
+    }
+
     return data;
   } catch (error) {
     console.error('Error starting upload session:', error);
-    return { error: 'An error occurred while starting the upload session.' };
+    return { error: 'An error occurred while starting the upload session.', details: error.message };
   }
 };
 

@@ -6,7 +6,8 @@
  * @param {Array} [args.actions=[]] - Actions to perform on the files.
  * @returns {Promise<Object>} - The response containing the list of received files.
  */
-import { executeFunction as getCurrentAccount } from './get-current-account.js';
+import { apiTool as getCurrentAccountTool } from './get-current-account.js';
+const getCurrentAccount = getCurrentAccountTool.function;
 
 const executeFunction = async (args) => {
   let { limit = 100, actions = [], team_member_id } = args;
